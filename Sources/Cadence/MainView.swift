@@ -33,6 +33,15 @@ enum CadencePalette {
   static let gold = Color(red: 1.00, green: 0.69, blue: 0.24)
 }
 
+extension TimerKind {
+  var title: String {
+    switch self {
+    case .pomodoro: "Pomodoro"
+    case .stopwatch: "Stopwatch"
+    }
+  }
+}
+
 struct MainView: View {
   @EnvironmentObject private var model: AppModel
   @Environment(\.colorScheme) private var colorScheme
@@ -157,104 +166,128 @@ struct FocusCard: View {
     Binding(get: { model.currentNote }, set: { model.setNote($0) })
   }
 
+  @State private var isConfirmingStopwatchReset = false
+
   var body: some View {
     VStack(spacing: 17) {
-      ModeSelector()
+      KindSelector()
 
-      if model.mode == .focus {
-        VStack(spacing: 9) {
-          HStack(spacing: 9) {
-            Image(systemName: "tag.fill")
+      if model.activeKind == .pomodoro {
+        ModeSelector()
+
+        if model.mode == .focus {
+          labelAndNoteFields
+        } else {
+          HStack(spacing: 10) {
+            Image(systemName: model.mode.systemImage)
               .foregroundStyle(CadencePalette.orange)
-            TextField("What are you working on?", text: labelBinding)
-              .textFieldStyle(.plain)
-              .font(.system(size: 15, weight: .medium))
+            Text(
+              model.mode == .shortBreak
+                ? "Step away for a moment. Your work is safe."
+                : "Take a real pause and return with fresh eyes."
+            )
+            .foregroundStyle(.secondary)
           }
-          .padding(.horizontal, 13)
-          .frame(height: 42)
-          .background(
-            Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-          )
-          .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-              .stroke(Color.primary.opacity(0.075))
-          }
-
-          HStack(spacing: 9) {
-            Image(systemName: "text.alignleft")
-              .foregroundStyle(.tertiary)
-            TextField("Optional detail for your log", text: noteBinding)
-              .textFieldStyle(.plain)
-              .font(.system(size: 13))
-          }
-          .padding(.horizontal, 13)
-          .frame(height: 38)
-          .background(
-            Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+          .font(.system(size: 13, weight: .medium))
+          .frame(height: 89)
         }
-        .disabled(model.hasStartedSession)
-        .opacity(model.hasStartedSession ? 0.72 : 1)
-      } else {
+
+        TimerDial()
+          .frame(width: 286, height: 286)
+
         HStack(spacing: 10) {
-          Image(systemName: model.mode.systemImage)
-            .foregroundStyle(CadencePalette.orange)
-          Text(
-            model.mode == .shortBreak
-              ? "Step away for a moment. Your work is safe."
-              : "Take a real pause and return with fresh eyes."
-          )
-          .foregroundStyle(.secondary)
-        }
-        .font(.system(size: 13, weight: .medium))
-        .frame(height: 89)
-      }
-
-      TimerDial()
-        .frame(width: 286, height: 286)
-
-      HStack(spacing: 10) {
-        Button {
-          if model.hasStartedSession {
-            isConfirmingReset = true
-          } else {
-            model.resetTimer()
-          }
-        } label: {
-          Image(systemName: "arrow.counterclockwise")
-            .frame(width: 18, height: 18)
-        }
-        .buttonStyle(.bordered)
-        .help("Reset timer")
-
-        Button {
-          model.toggleTimer()
-        } label: {
-          Label(
-            model.isRunning ? "Pause" : (model.hasStartedSession ? "Resume" : "Start"),
-            systemImage: model.isRunning ? "pause.fill" : "play.fill"
-          )
-          .frame(minWidth: 104)
-        }
-        .buttonStyle(CadencePrimaryButtonStyle())
-        .keyboardShortcut(.return, modifiers: [.command])
-        .disabled(
-          model.mode == .focus
-            && model.currentLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !model.isRunning)
-
-        if model.mode == .focus && model.hasStartedSession {
-          Button("Finish & Log") {
-            model.finishFocus()
+          Button {
+            if model.hasStartedSession {
+              isConfirmingReset = true
+            } else {
+              model.resetTimer()
+            }
+          } label: {
+            Image(systemName: "arrow.counterclockwise")
+              .frame(width: 18, height: 18)
           }
           .buttonStyle(.bordered)
-          .disabled(model.elapsedSeconds < 1)
-        }
-      }
+          .help("Reset timer")
 
-      Text(statusText)
-        .font(.caption)
-        .foregroundStyle(.secondary.opacity(0.78))
-        .frame(height: 16)
+          Button {
+            model.toggleTimer()
+          } label: {
+            Label(
+              model.isRunning ? "Pause" : (model.hasStartedSession ? "Resume" : "Start"),
+              systemImage: model.isRunning ? "pause.fill" : "play.fill"
+            )
+            .frame(minWidth: 104)
+          }
+          .buttonStyle(CadencePrimaryButtonStyle())
+          .keyboardShortcut(.return, modifiers: [.command])
+          .disabled(
+            model.mode == .focus
+              && model.currentLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+              && !model.isRunning)
+
+          if model.mode == .focus && model.hasStartedSession {
+            Button("Finish & Log") {
+              model.finishFocus()
+            }
+            .buttonStyle(.bordered)
+            .disabled(model.elapsedSeconds < 1)
+          }
+        }
+
+        Text(statusText)
+          .font(.caption)
+          .foregroundStyle(.secondary.opacity(0.78))
+          .frame(height: 16)
+      } else {
+        labelAndNoteFields
+
+        StopwatchDial()
+          .frame(width: 286, height: 286)
+
+        HStack(spacing: 10) {
+          Button {
+            if model.stopwatchElapsedSeconds > 0 {
+              isConfirmingStopwatchReset = true
+            } else {
+              model.discardStopwatch()
+            }
+          } label: {
+            Image(systemName: "arrow.counterclockwise")
+              .frame(width: 18, height: 18)
+          }
+          .buttonStyle(.bordered)
+          .help("Discard stopwatch")
+
+          Button {
+            model.toggleStopwatch()
+          } label: {
+            Label(
+              model.isStopwatchRunning
+                ? "Pause" : (model.hasStartedStopwatchSession ? "Resume" : "Start"),
+              systemImage: model.isStopwatchRunning ? "pause.fill" : "play.fill"
+            )
+            .frame(minWidth: 104)
+          }
+          .buttonStyle(CadencePrimaryButtonStyle())
+          .keyboardShortcut(.return, modifiers: [.command])
+          .disabled(
+            model.currentLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+              && !model.isStopwatchRunning)
+
+          if model.hasStartedStopwatchSession {
+            Button("Stop & Log") {
+              model.stopAndLogStopwatch()
+            }
+            .buttonStyle(.bordered)
+            .disabled(model.stopwatchElapsedSeconds < 1)
+          }
+        }
+
+        Text(stopwatchStatusText)
+          .font(.caption)
+          .foregroundStyle(.secondary.opacity(0.78))
+          .frame(height: 16)
+      }
     }
     .padding(22)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -271,6 +304,53 @@ struct FocusCard: View {
     } message: {
       Text("Unlogged focus time in this timer will be lost.")
     }
+    .confirmationDialog(
+      "Discard this stopwatch?",
+      isPresented: $isConfirmingStopwatchReset,
+      titleVisibility: .visible
+    ) {
+      Button("Discard Stopwatch", role: .destructive) {
+        model.discardStopwatch()
+      }
+      Button("Keep Stopwatch", role: .cancel) {}
+    } message: {
+      Text("Unlogged elapsed time on this stopwatch will be lost.")
+    }
+  }
+
+  private var labelAndNoteFields: some View {
+    VStack(spacing: 9) {
+      HStack(spacing: 9) {
+        Image(systemName: "tag.fill")
+          .foregroundStyle(CadencePalette.orange)
+        TextField("What are you working on?", text: labelBinding)
+          .textFieldStyle(.plain)
+          .font(.system(size: 15, weight: .medium))
+      }
+      .padding(.horizontal, 13)
+      .frame(height: 42)
+      .background(
+        Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+      )
+      .overlay {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+          .stroke(Color.primary.opacity(0.075))
+      }
+
+      HStack(spacing: 9) {
+        Image(systemName: "text.alignleft")
+          .foregroundStyle(.tertiary)
+        TextField("Optional detail for your log", text: noteBinding)
+          .textFieldStyle(.plain)
+          .font(.system(size: 13))
+      }
+      .padding(.horizontal, 13)
+      .frame(height: 38)
+      .background(
+        Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+    .disabled(model.hasStartedSession || model.hasStartedStopwatchSession)
+    .opacity(model.hasStartedSession || model.hasStartedStopwatchSession ? 0.72 : 1)
   }
 
   private var statusText: String {
@@ -281,6 +361,12 @@ struct FocusCard: View {
     }
     if model.hasStartedSession { return "Paused without losing your place." }
     return model.mode == .focus ? "Label the work, then begin." : "Rest is part of the work."
+  }
+
+  private var stopwatchStatusText: String {
+    if model.isStopwatchRunning { return "Counting up. Stop & Log whenever you're done." }
+    if model.hasStartedStopwatchSession { return "Paused without losing your place." }
+    return "Label the work, then begin."
   }
 }
 
@@ -315,6 +401,44 @@ struct ModeSelector: View {
       Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 11, style: .continuous)
     )
     .disabled(model.hasStartedSession)
+  }
+}
+
+struct KindSelector: View {
+  @EnvironmentObject private var model: AppModel
+
+  private var isLocked: Bool {
+    model.hasStartedSession || model.hasStartedStopwatchSession
+  }
+
+  var body: some View {
+    HStack(spacing: 6) {
+      ForEach(TimerKind.allCases, id: \.rawValue) { kind in
+        Button {
+          model.selectKind(kind)
+        } label: {
+          Text(kind.title)
+            .font(.system(size: 12, weight: .semibold))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(model.activeKind == kind ? Color.white : Color.secondary)
+        .background {
+          if model.activeKind == kind {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+              .fill(CadencePalette.gold)
+              .shadow(color: CadencePalette.gold.opacity(0.22), radius: 6, y: 2)
+          }
+        }
+      }
+    }
+    .padding(4)
+    .background(
+      Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+    )
+    .disabled(isLocked)
   }
 }
 
@@ -360,10 +484,7 @@ struct TimerDial: View {
           .tracking(1.3)
           .foregroundStyle(CadencePalette.orange)
 
-        Text(model.timeText)
-          .font(.system(size: 57, weight: .medium, design: .rounded))
-          .monospacedDigit()
-          .contentTransition(.numericText())
+        EditableDurationText(fontSize: 57)
 
         Text(model.isRunning ? "in progress" : (model.hasStartedSession ? "paused" : "ready"))
           .font(.system(size: 12, weight: .medium))
@@ -371,6 +492,107 @@ struct TimerDial: View {
       }
     }
     .padding(8)
+  }
+}
+
+struct StopwatchDial: View {
+  @EnvironmentObject private var model: AppModel
+
+  var body: some View {
+    ZStack {
+      Circle()
+        .stroke(Color.primary.opacity(0.055), lineWidth: 13)
+
+      Circle()
+        .stroke(
+          CadencePalette.gold,
+          style: StrokeStyle(lineWidth: 13, lineCap: .round)
+        )
+        .opacity(model.isStopwatchRunning ? 0.9 : 0.3)
+        .shadow(
+          color: CadencePalette.gold.opacity(model.isStopwatchRunning ? 0.25 : 0.10), radius: 9
+        )
+        .animation(.linear(duration: 0.25), value: model.isStopwatchRunning)
+
+      VStack(spacing: 8) {
+        Label("STOPWATCH", systemImage: "stopwatch")
+          .font(.system(size: 10, weight: .bold))
+          .tracking(1.3)
+          .foregroundStyle(CadencePalette.gold)
+
+        Text(model.stopwatchTimeText)
+          .font(.system(size: 57, weight: .medium, design: .rounded))
+          .monospacedDigit()
+          .contentTransition(.numericText())
+
+        Text(
+          model.isStopwatchRunning
+            ? "counting" : (model.hasStartedStopwatchSession ? "paused" : "ready")
+        )
+        .font(.system(size: 12, weight: .medium))
+        .foregroundStyle(.secondary.opacity(0.75))
+      }
+    }
+    .padding(8)
+  }
+}
+
+/// A big time readout that becomes an editable minutes field when tapped,
+/// as long as the Pomodoro timer hasn't started. Enter commits, Escape or
+/// losing focus without a change cancels back to the normal display.
+struct EditableDurationText: View {
+  @EnvironmentObject private var model: AppModel
+  @State private var isEditing = false
+  @State private var draftText = ""
+  @FocusState private var isFieldFocused: Bool
+  let fontSize: CGFloat
+
+  private var canEdit: Bool {
+    !model.hasStartedSession
+  }
+
+  var body: some View {
+    if isEditing {
+      TextField("", text: $draftText)
+        .textFieldStyle(.plain)
+        .font(.system(size: fontSize, weight: .medium, design: .rounded))
+        .monospacedDigit()
+        .multilineTextAlignment(.center)
+        .frame(width: fontSize * 3.4)
+        .focused($isFieldFocused)
+        .onSubmit { commit() }
+        .onExitCommand { cancel() }
+        .onChange(of: isFieldFocused) { _, focused in
+          if !focused { cancel() }
+        }
+        .onAppear { isFieldFocused = true }
+    } else {
+      Text(model.timeText)
+        .font(.system(size: fontSize, weight: .medium, design: .rounded))
+        .monospacedDigit()
+        .contentTransition(.numericText())
+        .contentShape(Rectangle())
+        .onTapGesture { beginEditing() }
+        .help(canEdit ? "Tap to set a custom duration" : "")
+    }
+  }
+
+  private func beginEditing() {
+    guard canEdit else { return }
+    draftText = "\(max(1, Int((model.timer.duration / 60).rounded())))"
+    isEditing = true
+  }
+
+  private func commit() {
+    defer { isEditing = false }
+    guard let minutes = Int(draftText.trimmingCharacters(in: .whitespaces)), minutes > 0 else {
+      return
+    }
+    model.setDuration(TimeInterval(minutes * 60))
+  }
+
+  private func cancel() {
+    isEditing = false
   }
 }
 

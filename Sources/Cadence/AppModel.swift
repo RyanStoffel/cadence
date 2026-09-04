@@ -110,6 +110,18 @@ final class AppModel: ObservableObject {
   var currentNote: String { workflow.currentNote }
   var isRunning: Bool { timer.isRunning }
   var hasStartedSession: Bool { timer.sessionStartedAt != nil }
+  var stopwatch: Stopwatch { workflow.stopwatch }
+  var activeKind: TimerKind { workflow.activeKind }
+  var isStopwatchRunning: Bool { stopwatch.isRunning }
+  var hasStartedStopwatchSession: Bool { stopwatch.sessionStartedAt != nil }
+
+  var stopwatchElapsedSeconds: TimeInterval {
+    stopwatch.elapsed(at: now)
+  }
+
+  var stopwatchTimeText: String {
+    hourAwareClockText(for: stopwatchElapsedSeconds)
+  }
 
   var remainingSeconds: TimeInterval {
     timer.remaining(at: now)
@@ -252,6 +264,39 @@ final class AppModel: ObservableObject {
     showBanner("Entry removed.")
   }
 
+  func selectKind(_ kind: TimerKind) {
+    workflow.selectKind(kind)
+    persist()
+  }
+
+  func toggleStopwatch() {
+    if isStopwatchRunning {
+      workflow.pauseStopwatch(at: now)
+      persist()
+      showBanner("Stopwatch paused. Your place is saved.")
+      return
+    }
+
+    guard workflow.startStopwatch(at: now) else {
+      showBanner("Add a clear label before starting the stopwatch.")
+      return
+    }
+
+    persist()
+  }
+
+  func stopAndLogStopwatch() {
+    guard let session = workflow.stopStopwatch(at: now) else { return }
+    persist()
+    celebrate("Logged \(durationText(session.duration)). Stopwatch reset.")
+  }
+
+  func discardStopwatch() {
+    workflow.discardStopwatch()
+    persist()
+    showBanner("Stopwatch reset.")
+  }
+
   func copyWeeklyLog() {
     let report = weeklyReport
     guard !report.sessions.isEmpty else {
@@ -356,6 +401,17 @@ final class AppModel: ObservableObject {
   private func clockText(for seconds: TimeInterval) -> String {
     let total = max(0, Int(ceil(seconds)))
     return String(format: "%02d:%02d", total / 60, total % 60)
+  }
+
+  private func hourAwareClockText(for seconds: TimeInterval) -> String {
+    let total = max(0, Int(seconds))
+    let hours = total / 3_600
+    let minutes = (total % 3_600) / 60
+    let secs = total % 60
+    if hours > 0 {
+      return String(format: "%d:%02d:%02d", hours, minutes, secs)
+    }
+    return String(format: "%02d:%02d", minutes, secs)
   }
 
   private func fileDateText(_ date: Date) -> String {

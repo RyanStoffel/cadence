@@ -11,6 +11,8 @@ public struct FocusWorkflow: Equatable, Sendable {
   public private(set) var mode: TimerMode
   public var currentLabel: String
   public var currentNote: String
+  public private(set) var stopwatch: Stopwatch
+  public private(set) var activeKind: TimerKind
 
   public init(snapshot: AppSnapshot = AppSnapshot()) {
     self.sessions = snapshot.sessions
@@ -18,6 +20,8 @@ public struct FocusWorkflow: Equatable, Sendable {
     self.mode = snapshot.mode
     self.currentLabel = snapshot.currentLabel
     self.currentNote = snapshot.currentNote
+    self.stopwatch = snapshot.stopwatch
+    self.activeKind = snapshot.activeKind
   }
 
   public var snapshot: AppSnapshot {
@@ -26,7 +30,9 @@ public struct FocusWorkflow: Equatable, Sendable {
       timer: timer,
       mode: mode,
       currentLabel: currentLabel,
-      currentNote: currentNote
+      currentNote: currentNote,
+      stopwatch: stopwatch,
+      activeKind: activeKind
     )
   }
 
@@ -116,5 +122,44 @@ public struct FocusWorkflow: Equatable, Sendable {
 
   public mutating func deleteSession(id: UUID) {
     sessions.removeAll { $0.id == id }
+  }
+
+  public mutating func selectKind(_ kind: TimerKind) {
+    activeKind = kind
+  }
+
+  @discardableResult
+  public mutating func startStopwatch(at date: Date) -> Bool {
+    guard !currentLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+      return false
+    }
+    stopwatch.start(at: date)
+    return stopwatch.isRunning
+  }
+
+  public mutating func pauseStopwatch(at date: Date) {
+    stopwatch.pause(at: date)
+  }
+
+  @discardableResult
+  public mutating func stopStopwatch(at date: Date) -> WorkSession? {
+    guard let startedAt = stopwatch.sessionStartedAt else { return nil }
+    let elapsed = stopwatch.elapsed(at: date)
+    guard
+      let session = WorkSession(
+        label: currentLabel,
+        note: currentNote,
+        startedAt: startedAt,
+        endedAt: date,
+        duration: elapsed
+      )
+    else { return nil }
+    sessions.append(session)
+    stopwatch.reset()
+    return session
+  }
+
+  public mutating func discardStopwatch() {
+    stopwatch.reset()
   }
 }

@@ -41,4 +41,51 @@ final class SnapshotStoreTests: XCTestCase {
 
     XCTAssertEqual(restored, snapshot)
   }
+
+  func testSnapshotRoundTripsStopwatchAndActiveKind() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+      UUID().uuidString, isDirectory: true)
+    let url = directory.appendingPathComponent("state.json")
+    let start = Date(timeIntervalSince1970: 1_788_000_000)
+    var stopwatch = Stopwatch()
+    stopwatch.start(at: start)
+    let snapshot = AppSnapshot(
+      currentLabel: "Client call",
+      stopwatch: stopwatch,
+      activeKind: .stopwatch
+    )
+    let store = SnapshotStore(url: url)
+
+    try store.save(snapshot)
+    let restored = try store.load()
+
+    XCTAssertEqual(restored, snapshot)
+  }
+
+  func testOldFormatSnapshotWithoutStopwatchFieldsStillDecodes() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+      UUID().uuidString, isDirectory: true)
+    let url = directory.appendingPathComponent("state.json")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let legacyJSON = """
+      {
+        "sessions": [],
+        "timer": {
+          "duration": 1500,
+          "remainingWhenPaused": 1500
+        },
+        "mode": "focus",
+        "currentLabel": "Legacy label",
+        "currentNote": ""
+      }
+      """
+    try Data(legacyJSON.utf8).write(to: url, options: .atomic)
+    let store = SnapshotStore(url: url)
+
+    let restored = try store.load()
+
+    XCTAssertEqual(restored?.currentLabel, "Legacy label")
+    XCTAssertEqual(restored?.activeKind, .pomodoro)
+    XCTAssertEqual(restored?.stopwatch, Stopwatch())
+  }
 }

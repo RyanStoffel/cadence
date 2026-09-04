@@ -6,19 +6,40 @@ public struct AppSnapshot: Codable, Equatable, Sendable {
   public var mode: TimerMode
   public var currentLabel: String
   public var currentNote: String
+  public var stopwatch: Stopwatch
+  public var activeKind: TimerKind
 
   public init(
     sessions: [WorkSession] = [],
     timer: FocusTimer = FocusTimer(duration: TimerMode.focus.defaultDuration),
     mode: TimerMode = .focus,
     currentLabel: String = "",
-    currentNote: String = ""
+    currentNote: String = "",
+    stopwatch: Stopwatch = Stopwatch(),
+    activeKind: TimerKind = .pomodoro
   ) {
     self.sessions = sessions
     self.timer = timer
     self.mode = mode
     self.currentLabel = currentLabel
     self.currentNote = currentNote
+    self.stopwatch = stopwatch
+    self.activeKind = activeKind
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case sessions, timer, mode, currentLabel, currentNote, stopwatch, activeKind
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    sessions = try container.decode([WorkSession].self, forKey: .sessions)
+    timer = try container.decode(FocusTimer.self, forKey: .timer)
+    mode = try container.decode(TimerMode.self, forKey: .mode)
+    currentLabel = try container.decode(String.self, forKey: .currentLabel)
+    currentNote = try container.decode(String.self, forKey: .currentNote)
+    stopwatch = try container.decodeIfPresent(Stopwatch.self, forKey: .stopwatch) ?? Stopwatch()
+    activeKind = try container.decodeIfPresent(TimerKind.self, forKey: .activeKind) ?? .pomodoro
   }
 }
 

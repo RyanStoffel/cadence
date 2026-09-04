@@ -139,4 +139,89 @@ final class FocusWorkflowTests: XCTestCase {
 
     XCTAssertEqual(workflow.timer.duration, 1_500)
   }
+
+  func testStopwatchStartsOnlyWithALabel() {
+    let now = Date(timeIntervalSince1970: 1_788_000_000)
+    var workflow = FocusWorkflow()
+
+    XCTAssertFalse(workflow.startStopwatch(at: now))
+    XCTAssertFalse(workflow.stopwatch.isRunning)
+
+    workflow.currentLabel = "Client call"
+    XCTAssertTrue(workflow.startStopwatch(at: now))
+    XCTAssertTrue(workflow.stopwatch.isRunning)
+  }
+
+  func testPausingStopwatchFreezesElapsedTime() {
+    let start = Date(timeIntervalSince1970: 1_788_000_000)
+    var workflow = FocusWorkflow()
+    workflow.currentLabel = "Client call"
+    workflow.startStopwatch(at: start)
+
+    workflow.pauseStopwatch(at: start.addingTimeInterval(60))
+
+    XCTAssertFalse(workflow.stopwatch.isRunning)
+    XCTAssertEqual(
+      workflow.stopwatch.elapsed(at: start.addingTimeInterval(600)), 60, accuracy: 0.001)
+  }
+
+  func testStoppingStopwatchLogsASessionAndResetsToZero() throws {
+    let start = Date(timeIntervalSince1970: 1_788_000_000)
+    var workflow = FocusWorkflow()
+    workflow.currentLabel = "Client call"
+    workflow.currentNote = "Walk through the proposal"
+    workflow.startStopwatch(at: start)
+
+    let session = try XCTUnwrap(workflow.stopStopwatch(at: start.addingTimeInterval(300)))
+
+    XCTAssertEqual(session.label, "Client call")
+    XCTAssertEqual(session.note, "Walk through the proposal")
+    XCTAssertEqual(session.duration, 300, accuracy: 0.001)
+    XCTAssertEqual(session.origin, .timer)
+    XCTAssertEqual(workflow.sessions, [session])
+    XCTAssertFalse(workflow.stopwatch.isRunning)
+    XCTAssertEqual(workflow.stopwatch.elapsed(at: start.addingTimeInterval(900)), 0)
+  }
+
+  func testStoppingAZeroDurationStopwatchDoesNotLogASession() {
+    let start = Date(timeIntervalSince1970: 1_788_000_000)
+    var workflow = FocusWorkflow()
+    workflow.currentLabel = "Client call"
+    workflow.startStopwatch(at: start)
+
+    let session = workflow.stopStopwatch(at: start)
+
+    XCTAssertNil(session)
+    XCTAssertTrue(workflow.sessions.isEmpty)
+  }
+
+  func testDiscardingStopwatchClearsItWithoutLoggingASession() {
+    let start = Date(timeIntervalSince1970: 1_788_000_000)
+    var workflow = FocusWorkflow()
+    workflow.currentLabel = "Client call"
+    workflow.startStopwatch(at: start)
+    workflow.pauseStopwatch(at: start.addingTimeInterval(120))
+
+    workflow.discardStopwatch()
+
+    XCTAssertTrue(workflow.sessions.isEmpty)
+    XCTAssertFalse(workflow.stopwatch.isRunning)
+    XCTAssertEqual(workflow.stopwatch.elapsed(at: start.addingTimeInterval(900)), 0)
+  }
+
+  func testPomodoroAndStopwatchStateAreIndependent() {
+    let start = Date(timeIntervalSince1970: 1_788_000_000)
+    var workflow = FocusWorkflow()
+    workflow.currentLabel = "Deep work session"
+    workflow.start(at: start)
+
+    workflow.selectKind(.stopwatch)
+    workflow.startStopwatch(at: start.addingTimeInterval(60))
+    workflow.pauseStopwatch(at: start.addingTimeInterval(120))
+
+    XCTAssertTrue(workflow.timer.isRunning)
+    XCTAssertEqual(
+      workflow.timer.remaining(at: start.addingTimeInterval(120)), 1_380, accuracy: 0.001)
+    XCTAssertEqual(workflow.activeKind, .stopwatch)
+  }
 }
