@@ -1,6 +1,19 @@
 # Cadence
 
-A native macOS Pomodoro timer and local work log.
+A native macOS menu-bar Pomodoro timer, stopwatch, and local work log.
+
+Cadence launches in the menu bar without a Dock icon. Click its timer icon to
+set a label and start tracking. **Open App** opens the larger window for your
+work log, reports, and exports. Closing that window leaves the timer running;
+choose **Quit** in the menu bar to exit.
+
+- **Stopwatch:** choose Stopwatch, enter a label, then Start. Pause/Resume excludes
+  paused time; Stop & Log saves the elapsed work as a labeled session.
+- **Custom countdown:** click the time inside the Pomodoro circle and enter
+  whole minutes (1–1440). Return applies it; Escape cancels. Finish or discard
+  an active session before changing its duration.
+- Running timers continue through sleep or app quit; paused timers stay paused.
+  Existing logs remain in the same local storage location.
 
 ## What it does
 
@@ -19,7 +32,8 @@ A native macOS Pomodoro timer and local work log.
 
 ## Build
 
-Requires macOS 14 or newer and Xcode command-line tools.
+Requires macOS 14 or newer and Xcode command-line tools. The downloadable app
+is built for Apple silicon.
 
 ```bash
 swift test

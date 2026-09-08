@@ -13,22 +13,16 @@ struct ManualEntryView: View {
   private let minuteOptions = Array(stride(from: 0, through: 55, by: 5))
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 20) {
-      HStack(alignment: .top) {
-        VStack(alignment: .leading, spacing: 4) {
-          Text("Add time")
-            .font(.system(size: 22, weight: .semibold, design: .rounded))
-          Text("Capture work that happened away from the timer.")
-            .font(.callout)
-            .foregroundStyle(.secondary)
-        }
-        Spacer()
-        Image(systemName: "plus.circle.fill")
-          .font(.system(size: 28))
-          .foregroundStyle(CadencePalette.orange)
+    VStack(alignment: .leading, spacing: 18) {
+      VStack(alignment: .leading, spacing: 3) {
+        Text("Add time")
+          .font(.system(size: 17, weight: .semibold))
+        Text("Capture work that happened away from the timer.")
+          .font(CadenceType.body)
+          .foregroundStyle(.secondary)
       }
 
-      VStack(alignment: .leading, spacing: 7) {
+      VStack(alignment: .leading, spacing: 6) {
         Text("WORK LABEL")
           .fieldLabel()
         HStack {
@@ -42,19 +36,20 @@ struct ManualEntryView: View {
             } label: {
               Image(systemName: "clock.arrow.circlepath")
             }
+            .frame(width: 44)
             .help("Use a recent label")
           }
         }
       }
 
-      VStack(alignment: .leading, spacing: 7) {
+      VStack(alignment: .leading, spacing: 6) {
         Text("DETAIL")
           .fieldLabel()
         TextField("Optional one-line detail", text: $note)
           .textFieldStyle(.roundedBorder)
       }
 
-      VStack(alignment: .leading, spacing: 7) {
+      VStack(alignment: .leading, spacing: 6) {
         Text("ENDED")
           .fieldLabel()
         DatePicker(
@@ -64,20 +59,21 @@ struct ManualEntryView: View {
         .datePickerStyle(.field)
       }
 
-      VStack(alignment: .leading, spacing: 7) {
+      VStack(alignment: .leading, spacing: 6) {
         Text("DURATION")
           .fieldLabel()
         HStack(spacing: 12) {
           Stepper(value: $hours, in: 0...12) {
             Text("\(hours) hr")
-              .frame(width: 52, alignment: .leading)
+              .frame(width: 48, alignment: .leading)
           }
           Picker("Minutes", selection: $minutes) {
             ForEach(minuteOptions, id: \.self) { minute in
               Text("\(minute) min").tag(minute)
             }
           }
-          .frame(width: 105)
+          .labelsHidden()
+          .frame(width: 100)
         }
       }
 
@@ -103,8 +99,8 @@ struct ManualEntryView: View {
             || (hours == 0 && minutes == 0))
       }
     }
-    .padding(24)
-    .frame(width: 470, height: 450)
+    .padding(20)
+    .frame(width: 440, height: 420)
   }
 }
 
@@ -127,50 +123,49 @@ struct WorkLogView: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      HStack(spacing: 14) {
-        VStack(alignment: .leading, spacing: 3) {
+      HStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 2) {
           Text("Work log")
-            .font(.system(size: 22, weight: .semibold, design: .rounded))
+            .font(.system(size: 17, weight: .semibold))
           Text("\(model.sessions.count) sessions · \(model.durationText(totalSeconds)) total")
-            .font(.callout)
+            .font(CadenceType.body)
             .foregroundStyle(.secondary)
         }
         Spacer()
-        HStack(spacing: 7) {
+        HStack(spacing: 6) {
           Image(systemName: "magnifyingglass")
             .foregroundStyle(.tertiary)
           TextField("Search labels and details", text: $search)
             .textFieldStyle(.plain)
-            .frame(width: 185)
+            .font(CadenceType.body)
+            .frame(width: 170)
         }
-        .padding(.horizontal, 10)
-        .frame(height: 32)
-        .background(
-          Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .padding(.horizontal, 9)
+        .frame(height: 28)
+        .cadenceFieldChrome()
         Button("Export CSV") { model.exportCSV() }
           .buttonStyle(.bordered)
         Button("Done") { dismiss() }
-          .buttonStyle(.borderedProminent)
-          .tint(CadencePalette.orange)
+          .buttonStyle(CadencePrimaryButtonStyle())
           .keyboardShortcut(.defaultAction)
       }
-      .padding(20)
+      .padding(16)
 
       Divider()
 
       if filteredSessions.isEmpty {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
           Image(systemName: search.isEmpty ? "tray" : "magnifyingglass")
-            .font(.system(size: 28, weight: .light))
+            .font(.system(size: 24, weight: .light))
             .foregroundStyle(.tertiary)
           Text(search.isEmpty ? "No sessions logged yet" : "No matching sessions")
-            .font(.headline)
+            .font(CadenceType.emphasis)
           Text(
             search.isEmpty
               ? "Completed focus blocks and manual entries will collect here."
               : "Try a different label or detail."
           )
-          .font(.callout)
+          .font(CadenceType.body)
           .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -179,22 +174,22 @@ struct WorkLogView: View {
           LazyVStack(spacing: 0) {
             ForEach(filteredSessions) { session in
               SessionRow(session: session)
-                .padding(.horizontal, 20)
-              Divider().padding(.leading, 68)
+                .padding(.horizontal, 16)
+              Divider().padding(.leading, 42)
             }
           }
-          .padding(.vertical, 6)
+          .padding(.vertical, 4)
         }
       }
     }
-    .frame(width: 760, height: 580)
+    .frame(width: 720, height: 540)
   }
 }
 
 extension Text {
   fileprivate func fieldLabel() -> some View {
-    font(.system(size: 10, weight: .bold))
-      .tracking(1.0)
+    font(CadenceType.eyebrow)
+      .tracking(CadenceType.eyebrowTracking)
       .foregroundStyle(.secondary)
   }
 }

@@ -4,7 +4,7 @@ import SwiftUI
 
 struct MenuBarPanel: View {
   @EnvironmentObject private var model: AppModel
-  @Environment(\.openWindow) private var openWindow
+
   @State private var isConfirmingReset = false
   @State private var isConfirmingStopwatchReset = false
 
@@ -15,30 +15,21 @@ struct MenuBarPanel: View {
   private let durationPresets: [Int] = [15, 25, 45, 60]
 
   var body: some View {
-    VStack(spacing: 15) {
+    VStack(spacing: 12) {
       HStack {
-        HStack(spacing: 9) {
-          ZStack {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-              .fill(CadencePalette.orange)
-            Image(systemName: "waveform")
-              .font(.system(size: 13, weight: .semibold))
-              .foregroundStyle(.white)
-          }
-          .frame(width: 29, height: 29)
-          VStack(alignment: .leading, spacing: 1) {
-            Text("Cadence")
-              .font(.system(size: 13, weight: .semibold))
-            Text(model.activeKind == .pomodoro ? model.mode.title : "Stopwatch")
-              .font(.caption2)
-              .foregroundStyle(.secondary)
-          }
+        VStack(alignment: .leading, spacing: 1) {
+          Text("Cadence")
+            .font(CadenceType.emphasis)
+          Text(model.activeKind == .pomodoro ? model.mode.title : "Stopwatch")
+            .font(CadenceType.caption)
+            .foregroundStyle(.secondary)
         }
         Spacer()
         Button {
           openMainWindow()
         } label: {
           Image(systemName: "arrow.up.forward.app")
+            .foregroundStyle(.secondary)
         }
         .buttonStyle(.plain)
         .help("Open Cadence")
@@ -49,64 +40,65 @@ struct MenuBarPanel: View {
       if model.activeKind == .pomodoro {
         ZStack {
           Circle()
-            .stroke(Color.primary.opacity(0.07), lineWidth: 8)
+            .stroke(CadencePalette.track, lineWidth: 6)
           Circle()
             .trim(from: 0, to: model.progress)
-            .stroke(CadencePalette.orange, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+            .stroke(CadencePalette.accent, style: StrokeStyle(lineWidth: 6, lineCap: .round))
             .rotationEffect(.degrees(-90))
-          VStack(spacing: 3) {
+          VStack(spacing: 2) {
             MenuBarEditableDurationText()
             Text(model.isRunning ? "FOCUSING" : (model.hasStartedSession ? "PAUSED" : "READY"))
-              .font(.system(size: 8, weight: .bold))
-              .tracking(1.1)
+              .font(CadenceType.eyebrow)
+              .tracking(CadenceType.eyebrowTracking)
               .foregroundStyle(.secondary)
           }
         }
-        .frame(width: 132, height: 132)
+        .frame(width: 120, height: 120)
 
         if model.mode == .focus {
           TextField("What are you working on?", text: labelBinding)
             .textFieldStyle(.plain)
-            .font(.system(size: 12, weight: .medium))
-            .padding(.horizontal, 10)
-            .frame(height: 30)
-            .background(
-              Color.primary.opacity(0.045),
-              in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-            )
+            .font(CadenceType.body)
+            .padding(.horizontal, 9)
+            .frame(height: 28)
+            .cadenceFieldChrome()
             .disabled(model.hasStartedSession)
-            .opacity(model.hasStartedSession ? 0.72 : 1)
+            .opacity(model.hasStartedSession ? 0.7 : 1)
         } else {
           Text(model.mode == .shortBreak ? "Take a short reset" : "Take a proper break")
-            .font(.system(size: 12, weight: .medium))
+            .font(CadenceType.body)
             .foregroundStyle(.secondary)
+            .frame(height: 28)
         }
 
         if !model.hasStartedSession {
-          HStack(spacing: 6) {
+          HStack(spacing: 5) {
             ForEach(durationPresets, id: \.self) { minutes in
+              let selected = model.timer.duration == TimeInterval(minutes * 60)
               Button {
                 model.setDuration(TimeInterval(minutes * 60))
               } label: {
                 Text("\(minutes)m")
-                  .font(.system(size: 11, weight: .semibold))
+                  .font(CadenceType.control)
                   .frame(maxWidth: .infinity)
-                  .padding(.vertical, 6)
+                  .padding(.vertical, 5)
+                  .contentShape(Rectangle())
               }
               .buttonStyle(.plain)
+              .foregroundStyle(selected ? CadencePalette.accent : Color.secondary)
               .background(
-                (model.timer.duration == TimeInterval(minutes * 60))
-                  ? CadencePalette.orange.opacity(0.16) : Color.primary.opacity(0.045),
-                in: RoundedRectangle(cornerRadius: 7, style: .continuous)
+                selected ? CadencePalette.accent.opacity(0.14) : CadencePalette.subtleFill,
+                in: RoundedRectangle(cornerRadius: 5, style: .continuous)
               )
-              .foregroundStyle(
-                (model.timer.duration == TimeInterval(minutes * 60))
-                  ? CadencePalette.orange : Color.secondary)
+              .overlay {
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                  .stroke(CadencePalette.hairline)
+              }
             }
           }
         }
 
-        HStack(spacing: 9) {
+        HStack(spacing: 8) {
           Button {
             if model.hasStartedSession {
               isConfirmingReset = true
@@ -115,7 +107,7 @@ struct MenuBarPanel: View {
             }
           } label: {
             Image(systemName: "arrow.counterclockwise")
-              .frame(width: 20, height: 20)
+              .frame(width: 16, height: 16)
           }
           .buttonStyle(.bordered)
 
@@ -126,7 +118,7 @@ struct MenuBarPanel: View {
               model.isRunning ? "Pause" : (model.hasStartedSession ? "Resume" : "Start"),
               systemImage: model.isRunning ? "pause.fill" : "play.fill"
             )
-            .frame(minWidth: 86)
+            .frame(minWidth: 80)
           }
           .buttonStyle(CadencePrimaryButtonStyle())
           .disabled(
@@ -139,7 +131,7 @@ struct MenuBarPanel: View {
               model.finishFocus()
             } label: {
               Image(systemName: "checkmark")
-                .frame(width: 20, height: 20)
+                .frame(width: 16, height: 16)
             }
             .buttonStyle(.bordered)
             .help("Finish and log")
@@ -149,37 +141,38 @@ struct MenuBarPanel: View {
       } else {
         ZStack {
           Circle()
-            .stroke(Color.primary.opacity(0.07), lineWidth: 8)
+            .stroke(CadencePalette.track, lineWidth: 6)
           Circle()
-            .stroke(CadencePalette.gold, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-            .opacity(model.isStopwatchRunning ? 0.9 : 0.3)
-          VStack(spacing: 3) {
+            .stroke(
+              model.isStopwatchRunning
+                ? CadencePalette.accent : CadencePalette.accent.opacity(0.35),
+              style: StrokeStyle(lineWidth: 6, lineCap: .round)
+            )
+          VStack(spacing: 2) {
             Text(model.stopwatchTimeText)
-              .font(.system(size: 28, weight: .semibold, design: .rounded))
+              .font(.system(size: 24, weight: .light))
               .monospacedDigit()
             Text(
               model.isStopwatchRunning
                 ? "COUNTING" : (model.hasStartedStopwatchSession ? "PAUSED" : "READY")
             )
-            .font(.system(size: 8, weight: .bold))
-            .tracking(1.1)
+            .font(CadenceType.eyebrow)
+            .tracking(CadenceType.eyebrowTracking)
             .foregroundStyle(.secondary)
           }
         }
-        .frame(width: 132, height: 132)
+        .frame(width: 120, height: 120)
 
         TextField("What are you working on?", text: labelBinding)
           .textFieldStyle(.plain)
-          .font(.system(size: 12, weight: .medium))
-          .padding(.horizontal, 10)
-          .frame(height: 30)
-          .background(
-            Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-          )
+          .font(CadenceType.body)
+          .padding(.horizontal, 9)
+          .frame(height: 28)
+          .cadenceFieldChrome()
           .disabled(model.hasStartedStopwatchSession)
-          .opacity(model.hasStartedStopwatchSession ? 0.72 : 1)
+          .opacity(model.hasStartedStopwatchSession ? 0.7 : 1)
 
-        HStack(spacing: 9) {
+        HStack(spacing: 8) {
           Button {
             if model.stopwatchElapsedSeconds > 0 {
               isConfirmingStopwatchReset = true
@@ -188,7 +181,7 @@ struct MenuBarPanel: View {
             }
           } label: {
             Image(systemName: "arrow.counterclockwise")
-              .frame(width: 20, height: 20)
+              .frame(width: 16, height: 16)
           }
           .buttonStyle(.bordered)
 
@@ -200,7 +193,7 @@ struct MenuBarPanel: View {
                 ? "Pause" : (model.hasStartedStopwatchSession ? "Resume" : "Start"),
               systemImage: model.isStopwatchRunning ? "pause.fill" : "play.fill"
             )
-            .frame(minWidth: 86)
+            .frame(minWidth: 80)
           }
           .buttonStyle(CadencePrimaryButtonStyle())
           .disabled(
@@ -208,11 +201,8 @@ struct MenuBarPanel: View {
               && !model.isStopwatchRunning)
 
           if model.hasStartedStopwatchSession {
-            Button {
+            Button("Stop & Log") {
               model.stopAndLogStopwatch()
-            } label: {
-              Image(systemName: "checkmark")
-                .frame(width: 20, height: 20)
             }
             .buttonStyle(.bordered)
             .help("Stop and log")
@@ -223,22 +213,21 @@ struct MenuBarPanel: View {
 
       Divider()
 
-      HStack {
+      HStack(alignment: .firstTextBaseline) {
         VStack(alignment: .leading, spacing: 2) {
           Text("THIS WEEK")
-            .font(.system(size: 8, weight: .bold))
-            .tracking(1)
+            .font(CadenceType.eyebrow)
+            .tracking(CadenceType.eyebrowTracking)
             .foregroundStyle(.secondary)
           Text(String(format: "%.1f hours", model.weeklyReport.totalSeconds / 3_600))
-            .font(.system(size: 14, weight: .semibold, design: .rounded))
+            .font(CadenceType.emphasis)
         }
         Spacer()
         Button("Copy log line") {
           model.copyWeeklyLog()
         }
-        .buttonStyle(.plain)
-        .font(.caption.weight(.semibold))
-        .foregroundStyle(CadencePalette.orange)
+        .buttonStyle(.link)
+        .font(CadenceType.caption)
         .disabled(model.weeklyReport.sessions.isEmpty)
       }
 
@@ -252,11 +241,11 @@ struct MenuBarPanel: View {
         }
         .buttonStyle(.plain)
       }
-      .font(.caption)
+      .font(CadenceType.caption)
       .foregroundStyle(.secondary)
     }
-    .padding(17)
-    .frame(width: 310)
+    .padding(14)
+    .frame(width: 288)
     .confirmationDialog(
       "Discard this timer?",
       isPresented: $isConfirmingReset,
@@ -284,8 +273,7 @@ struct MenuBarPanel: View {
   }
 
   private func openMainWindow() {
-    openWindow(id: "main")
-    NSApp.activate()
+    MainWindowController.shared.openMainWindow()
   }
 }
 
@@ -297,30 +285,11 @@ struct MenuBarKindSelector: View {
   }
 
   var body: some View {
-    HStack(spacing: 5) {
-      ForEach(TimerKind.allCases, id: \.rawValue) { kind in
-        Button {
-          model.selectKind(kind)
-        } label: {
-          Text(kind.title)
-            .font(.system(size: 11, weight: .semibold))
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(model.activeKind == kind ? Color.white : Color.secondary)
-        .background {
-          if model.activeKind == kind {
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-              .fill(CadencePalette.gold)
-          }
-        }
-      }
-    }
-    .padding(3)
-    .background(
-      Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+    SegmentedRow(
+      items: TimerKind.allCases,
+      title: { $0.title },
+      isSelected: { model.activeKind == $0 },
+      select: { model.selectKind($0) }
     )
     .disabled(isLocked)
   }
@@ -344,10 +313,10 @@ struct MenuBarEditableDurationText: View {
     if isEditing {
       TextField("", text: $draftText)
         .textFieldStyle(.plain)
-        .font(.system(size: 28, weight: .semibold, design: .rounded))
+        .font(.system(size: 24, weight: .light))
         .monospacedDigit()
         .multilineTextAlignment(.center)
-        .frame(width: 96)
+        .frame(width: 90)
         .focused($isFieldFocused)
         .onSubmit { commit() }
         .onExitCommand { cancel() }
@@ -357,7 +326,7 @@ struct MenuBarEditableDurationText: View {
         .onAppear { isFieldFocused = true }
     } else {
       Text(model.timeText)
-        .font(.system(size: 28, weight: .semibold, design: .rounded))
+        .font(.system(size: 24, weight: .light))
         .monospacedDigit()
         .contentShape(Rectangle())
         .onTapGesture { beginEditing() }
@@ -372,11 +341,9 @@ struct MenuBarEditableDurationText: View {
   }
 
   private func commit() {
-    defer { isEditing = false }
-    guard let minutes = Int(draftText.trimmingCharacters(in: .whitespaces)), minutes > 0 else {
-      return
-    }
-    model.setDuration(TimeInterval(minutes * 60))
+    guard let seconds = DurationInput.seconds(from: draftText) else { return }
+    model.setDuration(seconds)
+    isEditing = false
   }
 
   private func cancel() {

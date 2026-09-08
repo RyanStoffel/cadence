@@ -30,35 +30,57 @@ let bounds = NSRect(x: 0, y: 0, width: size, height: size)
 NSColor.clear.setFill()
 bounds.fill()
 
-// Flat rounded-square background in warm amber/gold, no gradients.
 let tileRect = bounds.insetBy(dx: 42, dy: 42)
 let tile = NSBezierPath(roundedRect: tileRect, xRadius: 220, yRadius: 220)
-NSColor(red: 0.851, green: 0.635, blue: 0.290, alpha: 1).setFill()
+NSColor(red: 0.200, green: 0.278, blue: 0.400, alpha: 1).setFill()
 tile.fill()
 
-let border = NSBezierPath(roundedRect: tileRect.insetBy(dx: 3, dy: 3), xRadius: 217, yRadius: 217)
-NSColor.white.withAlphaComponent(0.08).setStroke()
-border.lineWidth = 6
-border.stroke()
-
-// Simple three-bar rhythm / pulse mark, centered, near-white glyph.
-let barWidth: CGFloat = 108
-let barSpacing: CGFloat = 64
-let barCornerRadius: CGFloat = 54
-let barHeights: [CGFloat] = [340, 560, 420]
-let totalWidth = barWidth * 3 + barSpacing * 2
-let startX = (size - Int(totalWidth)) / 2
-let centerY = CGFloat(size) / 2
-
-let glyphColor = NSColor(red: 0.99, green: 0.97, blue: 0.93, alpha: 1)
+let glyphColor = NSColor(red: 0.965, green: 0.973, blue: 0.984, alpha: 1)
 glyphColor.setFill()
+glyphColor.setStroke()
 
-for (index, height) in barHeights.enumerated() {
-  let x = CGFloat(startX) + CGFloat(index) * (barWidth + barSpacing)
-  let rect = NSRect(x: x, y: centerY - height / 2, width: barWidth, height: height)
-  let bar = NSBezierPath(roundedRect: rect, xRadius: barCornerRadius, yRadius: barCornerRadius)
-  bar.fill()
-}
+let center = NSPoint(x: CGFloat(size) / 2, y: 486)
+let ringRadius: CGFloat = 292
+let ringWidth: CGFloat = 62
+
+let ring = NSBezierPath()
+ring.appendArc(
+  withCenter: center, radius: ringRadius, startAngle: 0, endAngle: 360)
+ring.lineWidth = ringWidth
+ring.stroke()
+
+let stemWidth: CGFloat = 128
+let stemHeight: CGFloat = 96
+let stemRect = NSRect(
+  x: center.x - stemWidth / 2,
+  y: center.y + ringRadius + ringWidth / 2 - 34,
+  width: stemWidth,
+  height: stemHeight
+)
+NSBezierPath(roundedRect: stemRect, xRadius: 34, yRadius: 34).fill()
+
+let handAngle = CGFloat.pi / 4
+let handLength: CGFloat = 176
+let hand = NSBezierPath()
+hand.move(to: center)
+hand.line(
+  to: NSPoint(
+    x: center.x + sin(handAngle) * handLength,
+    y: center.y + cos(handAngle) * handLength
+  ))
+hand.lineWidth = 46
+hand.lineCapStyle = .round
+hand.stroke()
+
+let hubRadius: CGFloat = 30
+NSBezierPath(
+  ovalIn: NSRect(
+    x: center.x - hubRadius,
+    y: center.y - hubRadius,
+    width: hubRadius * 2,
+    height: hubRadius * 2
+  )
+).fill()
 
 NSGraphicsContext.restoreGraphicsState()
 

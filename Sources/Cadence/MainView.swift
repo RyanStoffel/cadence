@@ -1,3 +1,4 @@
+import AppKit
 import CadenceCore
 import SwiftUI
 
@@ -20,17 +21,40 @@ extension TimerMode {
 
   var systemImage: String {
     switch self {
-    case .focus: "waveform"
-    case .shortBreak: "cup.and.saucer.fill"
-    case .longBreak: "sparkles"
+    case .focus: "timer"
+    case .shortBreak: "cup.and.saucer"
+    case .longBreak: "moon.zzz"
     }
   }
 }
 
 enum CadencePalette {
-  static let orange = Color(red: 0.85, green: 0.64, blue: 0.29)
-  static let coral = Color(red: 0.91, green: 0.73, blue: 0.40)
-  static let gold = Color(red: 1.00, green: 0.69, blue: 0.24)
+  /// One accent, used sparingly. Slightly lighter in dark mode so text set in
+  /// the accent stays legible against dark surfaces.
+  static let accent = Color(
+    nsColor: NSColor(name: nil) { appearance in
+      appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        ? NSColor(red: 0.478, green: 0.588, blue: 0.741, alpha: 1)
+        : NSColor(red: 0.290, green: 0.400, blue: 0.561, alpha: 1)
+    })
+  static let accentDeep = Color(red: 0.200, green: 0.278, blue: 0.400)
+
+  static let cardFill = Color(nsColor: .controlBackgroundColor)
+  static let hairline = Color.primary.opacity(0.11)
+  static let subtleFill = Color.primary.opacity(0.055)
+  static let track = Color.primary.opacity(0.09)
+}
+
+enum CadenceType {
+  static let eyebrowTracking: CGFloat = 0.8
+
+  static let eyebrow = Font.system(size: 10, weight: .semibold)
+  static let caption = Font.system(size: 11)
+  static let control = Font.system(size: 12, weight: .medium)
+  static let body = Font.system(size: 13)
+  static let emphasis = Font.system(size: 13, weight: .semibold)
+  static let field = Font.system(size: 14)
+  static let figure = Font.system(size: 20, weight: .medium)
 }
 
 extension TimerKind {
@@ -44,45 +68,54 @@ extension TimerKind {
 
 struct MainView: View {
   @EnvironmentObject private var model: AppModel
-  @Environment(\.colorScheme) private var colorScheme
 
   var body: some View {
-    ZStack {
-      LinearGradient(
-        colors: [
-          Color(nsColor: .windowBackgroundColor),
-          CadencePalette.orange.opacity(colorScheme == .dark ? 0.055 : 0.025),
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-      )
-      .ignoresSafeArea()
-
-      VStack(spacing: 0) {
-        header
-        Divider().opacity(0.65)
-        HStack(alignment: .top, spacing: 18) {
-          FocusCard()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-          VStack(spacing: 18) {
-            WeekCard()
-            RecentActivityCard()
-              .frame(maxHeight: .infinity)
-          }
-          .frame(width: 390)
-        }
-        .padding(20)
+    HStack(alignment: .top, spacing: 16) {
+      FocusCard()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+      VStack(spacing: 16) {
+        WeekCard()
+        RecentActivityCard()
+          .frame(maxHeight: .infinity)
       }
-
+      .frame(width: 350)
+    }
+    .padding(16)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    .background(Color(nsColor: .windowBackgroundColor))
+    .overlay(alignment: .topTrailing) {
       if let message = model.bannerMessage {
         BannerView(message: message)
-          .padding(20)
-          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+          .padding(16)
           .transition(.move(edge: .top).combined(with: .opacity))
       }
     }
-    .animation(.spring(response: 0.35, dampingFraction: 0.82), value: model.bannerMessage)
-    .frame(minWidth: 900, minHeight: 620)
+    .animation(.easeOut(duration: 0.22), value: model.bannerMessage)
+    .frame(minWidth: 860, minHeight: 600)
+    .toolbar {
+      ToolbarItemGroup(placement: .primaryAction) {
+        Button {
+          model.isManualEntryPresented = true
+        } label: {
+          Label("Add time", systemImage: "plus")
+        }
+        .help("Add time manually")
+
+        Button {
+          model.isHistoryPresented = true
+        } label: {
+          Label("Work log", systemImage: "list.bullet.rectangle")
+        }
+        .help("Open the work log")
+
+        Button {
+          model.exportCSV()
+        } label: {
+          Label("Export", systemImage: "square.and.arrow.up")
+        }
+        .help("Export the work log as CSV")
+      }
+    }
     .debugCaptureIfRequested()
     .sheet(isPresented: $model.isManualEntryPresented) {
       ManualEntryView()
@@ -99,64 +132,12 @@ struct MainView: View {
       model.presentPreviewScreenIfRequested()
     }
   }
-
-  private var header: some View {
-    HStack(spacing: 13) {
-      ZStack {
-        RoundedRectangle(cornerRadius: 11, style: .continuous)
-          .fill(
-            LinearGradient(
-              colors: [CadencePalette.coral, CadencePalette.orange],
-              startPoint: .topLeading,
-              endPoint: .bottomTrailing
-            )
-          )
-        Image(systemName: "waveform")
-          .font(.system(size: 20, weight: .semibold))
-          .foregroundStyle(.white)
-      }
-      .frame(width: 40, height: 40)
-      .shadow(color: CadencePalette.orange.opacity(0.28), radius: 10, y: 4)
-
-      VStack(alignment: .leading, spacing: 1) {
-        Text("Cadence")
-          .font(.system(size: 18, weight: .semibold, design: .rounded))
-        Text("Focus timekeeper")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
-
-      Spacer()
-
-      Button {
-        model.isManualEntryPresented = true
-      } label: {
-        Label("Add time", systemImage: "plus")
-      }
-      .buttonStyle(.bordered)
-
-      Button {
-        model.isHistoryPresented = true
-      } label: {
-        Label("Work log", systemImage: "list.bullet.rectangle")
-      }
-      .buttonStyle(.bordered)
-
-      Button {
-        model.exportCSV()
-      } label: {
-        Label("Export", systemImage: "square.and.arrow.up")
-      }
-      .buttonStyle(.bordered)
-    }
-    .padding(.horizontal, 20)
-    .padding(.vertical, 14)
-  }
 }
 
 struct FocusCard: View {
   @EnvironmentObject private var model: AppModel
   @State private var isConfirmingReset = false
+  @State private var isConfirmingStopwatchReset = false
 
   private var labelBinding: Binding<String> {
     Binding(get: { model.currentLabel }, set: { model.setLabel($0) })
@@ -166,10 +147,8 @@ struct FocusCard: View {
     Binding(get: { model.currentNote }, set: { model.setNote($0) })
   }
 
-  @State private var isConfirmingStopwatchReset = false
-
   var body: some View {
-    VStack(spacing: 17) {
+    VStack(spacing: 14) {
       KindSelector()
 
       if model.activeKind == .pomodoro {
@@ -178,9 +157,9 @@ struct FocusCard: View {
         if model.mode == .focus {
           labelAndNoteFields
         } else {
-          HStack(spacing: 10) {
+          HStack(spacing: 8) {
             Image(systemName: model.mode.systemImage)
-              .foregroundStyle(CadencePalette.orange)
+              .foregroundStyle(.secondary)
             Text(
               model.mode == .shortBreak
                 ? "Step away for a moment. Your work is safe."
@@ -188,14 +167,14 @@ struct FocusCard: View {
             )
             .foregroundStyle(.secondary)
           }
-          .font(.system(size: 13, weight: .medium))
-          .frame(height: 89)
+          .font(CadenceType.body)
+          .frame(height: 82)
         }
 
         TimerDial()
-          .frame(width: 286, height: 286)
+          .frame(width: 244, height: 244)
 
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
           Button {
             if model.hasStartedSession {
               isConfirmingReset = true
@@ -204,7 +183,7 @@ struct FocusCard: View {
             }
           } label: {
             Image(systemName: "arrow.counterclockwise")
-              .frame(width: 18, height: 18)
+              .frame(width: 16, height: 16)
           }
           .buttonStyle(.bordered)
           .help("Reset timer")
@@ -216,7 +195,7 @@ struct FocusCard: View {
               model.isRunning ? "Pause" : (model.hasStartedSession ? "Resume" : "Start"),
               systemImage: model.isRunning ? "pause.fill" : "play.fill"
             )
-            .frame(minWidth: 104)
+            .frame(minWidth: 96)
           }
           .buttonStyle(CadencePrimaryButtonStyle())
           .keyboardShortcut(.return, modifiers: [.command])
@@ -235,16 +214,16 @@ struct FocusCard: View {
         }
 
         Text(statusText)
-          .font(.caption)
-          .foregroundStyle(.secondary.opacity(0.78))
-          .frame(height: 16)
+          .font(CadenceType.caption)
+          .foregroundStyle(.secondary)
+          .frame(height: 14)
       } else {
         labelAndNoteFields
 
         StopwatchDial()
-          .frame(width: 286, height: 286)
+          .frame(width: 244, height: 244)
 
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
           Button {
             if model.stopwatchElapsedSeconds > 0 {
               isConfirmingStopwatchReset = true
@@ -253,7 +232,7 @@ struct FocusCard: View {
             }
           } label: {
             Image(systemName: "arrow.counterclockwise")
-              .frame(width: 18, height: 18)
+              .frame(width: 16, height: 16)
           }
           .buttonStyle(.bordered)
           .help("Discard stopwatch")
@@ -266,7 +245,7 @@ struct FocusCard: View {
                 ? "Pause" : (model.hasStartedStopwatchSession ? "Resume" : "Start"),
               systemImage: model.isStopwatchRunning ? "pause.fill" : "play.fill"
             )
-            .frame(minWidth: 104)
+            .frame(minWidth: 96)
           }
           .buttonStyle(CadencePrimaryButtonStyle())
           .keyboardShortcut(.return, modifiers: [.command])
@@ -284,12 +263,12 @@ struct FocusCard: View {
         }
 
         Text(stopwatchStatusText)
-          .font(.caption)
-          .foregroundStyle(.secondary.opacity(0.78))
-          .frame(height: 16)
+          .font(CadenceType.caption)
+          .foregroundStyle(.secondary)
+          .frame(height: 14)
       }
     }
-    .padding(22)
+    .padding(18)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .cadenceCard()
     .confirmationDialog(
@@ -319,38 +298,31 @@ struct FocusCard: View {
   }
 
   private var labelAndNoteFields: some View {
-    VStack(spacing: 9) {
-      HStack(spacing: 9) {
-        Image(systemName: "tag.fill")
-          .foregroundStyle(CadencePalette.orange)
+    VStack(spacing: 8) {
+      HStack(spacing: 8) {
+        Image(systemName: "tag")
+          .foregroundStyle(.secondary)
         TextField("What are you working on?", text: labelBinding)
           .textFieldStyle(.plain)
-          .font(.system(size: 15, weight: .medium))
+          .font(CadenceType.field)
       }
-      .padding(.horizontal, 13)
-      .frame(height: 42)
-      .background(
-        Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-      )
-      .overlay {
-        RoundedRectangle(cornerRadius: 10, style: .continuous)
-          .stroke(Color.primary.opacity(0.075))
-      }
+      .padding(.horizontal, 10)
+      .frame(height: 34)
+      .cadenceFieldChrome()
 
-      HStack(spacing: 9) {
+      HStack(spacing: 8) {
         Image(systemName: "text.alignleft")
           .foregroundStyle(.tertiary)
         TextField("Optional detail for your log", text: noteBinding)
           .textFieldStyle(.plain)
-          .font(.system(size: 13))
+          .font(CadenceType.body)
       }
-      .padding(.horizontal, 13)
-      .frame(height: 38)
-      .background(
-        Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+      .padding(.horizontal, 10)
+      .frame(height: 32)
+      .cadenceFieldChrome()
     }
     .disabled(model.hasStartedSession || model.hasStartedStopwatchSession)
-    .opacity(model.hasStartedSession || model.hasStartedStopwatchSession ? 0.72 : 1)
+    .opacity(model.hasStartedSession || model.hasStartedStopwatchSession ? 0.7 : 1)
   }
 
   private var statusText: String {
@@ -370,35 +342,59 @@ struct FocusCard: View {
   }
 }
 
-struct ModeSelector: View {
-  @EnvironmentObject private var model: AppModel
+struct SegmentedRow<Item: Hashable>: View {
+  let items: [Item]
+  let title: (Item) -> String
+  let isSelected: (Item) -> Bool
+  let select: (Item) -> Void
 
   var body: some View {
-    HStack(spacing: 6) {
-      ForEach(TimerMode.allCases, id: \.rawValue) { mode in
+    HStack(spacing: 3) {
+      ForEach(items, id: \.self) { item in
+        let selected = isSelected(item)
         Button {
-          model.selectMode(mode)
+          select(item)
         } label: {
-          Text(mode.title)
-            .font(.system(size: 12, weight: .semibold))
+          Text(title(item))
+            .font(CadenceType.control)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            .padding(.vertical, 6)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(model.mode == mode ? Color.white : Color.secondary)
+        .foregroundStyle(selected ? CadencePalette.accent : Color.secondary)
         .background {
-          if model.mode == mode {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-              .fill(CadencePalette.orange)
-              .shadow(color: CadencePalette.orange.opacity(0.22), radius: 6, y: 2)
+          if selected {
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+              .fill(CadencePalette.accent.opacity(0.18))
+              .overlay {
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                  .stroke(CadencePalette.accent.opacity(0.45))
+              }
           }
         }
       }
     }
-    .padding(4)
+    .padding(3)
     .background(
-      Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+      CadencePalette.subtleFill, in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+    )
+    .overlay {
+      RoundedRectangle(cornerRadius: 8, style: .continuous)
+        .stroke(CadencePalette.hairline)
+    }
+  }
+}
+
+struct ModeSelector: View {
+  @EnvironmentObject private var model: AppModel
+
+  var body: some View {
+    SegmentedRow(
+      items: TimerMode.allCases,
+      title: { $0.title },
+      isSelected: { model.mode == $0 },
+      select: { model.selectMode($0) }
     )
     .disabled(model.hasStartedSession)
   }
@@ -412,31 +408,11 @@ struct KindSelector: View {
   }
 
   var body: some View {
-    HStack(spacing: 6) {
-      ForEach(TimerKind.allCases, id: \.rawValue) { kind in
-        Button {
-          model.selectKind(kind)
-        } label: {
-          Text(kind.title)
-            .font(.system(size: 12, weight: .semibold))
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(model.activeKind == kind ? Color.white : Color.secondary)
-        .background {
-          if model.activeKind == kind {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-              .fill(CadencePalette.gold)
-              .shadow(color: CadencePalette.gold.opacity(0.22), radius: 6, y: 2)
-          }
-        }
-      }
-    }
-    .padding(4)
-    .background(
-      Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+    SegmentedRow(
+      items: TimerKind.allCases,
+      title: { $0.title },
+      isSelected: { model.activeKind == $0 },
+      select: { model.selectKind($0) }
     )
     .disabled(isLocked)
   }
@@ -450,48 +426,31 @@ struct TimerDial: View {
 
     ZStack {
       Circle()
-        .stroke(Color.primary.opacity(0.055), lineWidth: 13)
+        .stroke(CadencePalette.track, lineWidth: 9)
 
       Circle()
         .trim(from: 0, to: progress)
         .stroke(
-          AngularGradient(
-            colors: [
-              CadencePalette.orange, CadencePalette.gold, CadencePalette.coral,
-              CadencePalette.orange,
-            ],
-            center: .center
-          ),
-          style: StrokeStyle(lineWidth: 13, lineCap: .round)
+          CadencePalette.accent,
+          style: StrokeStyle(lineWidth: 9, lineCap: .round)
         )
         .rotationEffect(.degrees(-90))
-        .shadow(color: CadencePalette.orange.opacity(model.isRunning ? 0.25 : 0.10), radius: 9)
         .animation(.linear(duration: 0.25), value: progress)
 
-      if model.hasStartedSession {
-        Circle()
-          .fill(CadencePalette.gold)
-          .frame(width: 10, height: 10)
-          .shadow(color: CadencePalette.gold.opacity(0.8), radius: 7)
-          .offset(y: -136)
-          .rotationEffect(.degrees(progress * 360))
-          .animation(.linear(duration: 0.25), value: progress)
-      }
-
-      VStack(spacing: 8) {
+      VStack(spacing: 6) {
         Label(model.mode.eyebrow, systemImage: model.mode.systemImage)
-          .font(.system(size: 10, weight: .bold))
-          .tracking(1.3)
-          .foregroundStyle(CadencePalette.orange)
+          .font(CadenceType.eyebrow)
+          .tracking(CadenceType.eyebrowTracking)
+          .foregroundStyle(.secondary)
 
-        EditableDurationText(fontSize: 57)
+        EditableDurationText(fontSize: 46)
 
         Text(model.isRunning ? "in progress" : (model.hasStartedSession ? "paused" : "ready"))
-          .font(.system(size: 12, weight: .medium))
-          .foregroundStyle(.secondary.opacity(0.75))
+          .font(CadenceType.caption)
+          .foregroundStyle(.secondary)
       }
     }
-    .padding(8)
+    .padding(6)
   }
 }
 
@@ -501,27 +460,23 @@ struct StopwatchDial: View {
   var body: some View {
     ZStack {
       Circle()
-        .stroke(Color.primary.opacity(0.055), lineWidth: 13)
+        .stroke(CadencePalette.track, lineWidth: 9)
 
       Circle()
         .stroke(
-          CadencePalette.gold,
-          style: StrokeStyle(lineWidth: 13, lineCap: .round)
-        )
-        .opacity(model.isStopwatchRunning ? 0.9 : 0.3)
-        .shadow(
-          color: CadencePalette.gold.opacity(model.isStopwatchRunning ? 0.25 : 0.10), radius: 9
+          model.isStopwatchRunning ? CadencePalette.accent : CadencePalette.accent.opacity(0.35),
+          style: StrokeStyle(lineWidth: 9, lineCap: .round)
         )
         .animation(.linear(duration: 0.25), value: model.isStopwatchRunning)
 
-      VStack(spacing: 8) {
+      VStack(spacing: 6) {
         Label("STOPWATCH", systemImage: "stopwatch")
-          .font(.system(size: 10, weight: .bold))
-          .tracking(1.3)
-          .foregroundStyle(CadencePalette.gold)
+          .font(CadenceType.eyebrow)
+          .tracking(CadenceType.eyebrowTracking)
+          .foregroundStyle(.secondary)
 
         Text(model.stopwatchTimeText)
-          .font(.system(size: 57, weight: .medium, design: .rounded))
+          .font(.system(size: 46, weight: .light))
           .monospacedDigit()
           .contentTransition(.numericText())
 
@@ -529,11 +484,11 @@ struct StopwatchDial: View {
           model.isStopwatchRunning
             ? "counting" : (model.hasStartedStopwatchSession ? "paused" : "ready")
         )
-        .font(.system(size: 12, weight: .medium))
-        .foregroundStyle(.secondary.opacity(0.75))
+        .font(CadenceType.caption)
+        .foregroundStyle(.secondary)
       }
     }
-    .padding(8)
+    .padding(6)
   }
 }
 
@@ -555,7 +510,7 @@ struct EditableDurationText: View {
     if isEditing {
       TextField("", text: $draftText)
         .textFieldStyle(.plain)
-        .font(.system(size: fontSize, weight: .medium, design: .rounded))
+        .font(.system(size: fontSize, weight: .light))
         .monospacedDigit()
         .multilineTextAlignment(.center)
         .frame(width: fontSize * 3.4)
@@ -568,7 +523,7 @@ struct EditableDurationText: View {
         .onAppear { isFieldFocused = true }
     } else {
       Text(model.timeText)
-        .font(.system(size: fontSize, weight: .medium, design: .rounded))
+        .font(.system(size: fontSize, weight: .light))
         .monospacedDigit()
         .contentTransition(.numericText())
         .contentShape(Rectangle())
@@ -584,11 +539,12 @@ struct EditableDurationText: View {
   }
 
   private func commit() {
-    defer { isEditing = false }
-    guard let minutes = Int(draftText.trimmingCharacters(in: .whitespaces)), minutes > 0 else {
+    guard let seconds = DurationInput.seconds(from: draftText) else {
+      isFieldFocused = true
       return
     }
-    model.setDuration(TimeInterval(minutes * 60))
+    model.setDuration(seconds)
+    isEditing = false
   }
 
   private func cancel() {
@@ -606,77 +562,63 @@ struct WeekCard: View {
 
     VStack(alignment: .leading, spacing: 14) {
       HStack(alignment: .firstTextBaseline) {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 3) {
           Text("THIS WEEK")
-            .font(.system(size: 10, weight: .bold))
-            .tracking(1.2)
+            .font(CadenceType.eyebrow)
+            .tracking(CadenceType.eyebrowTracking)
             .foregroundStyle(.secondary)
           Text(String(format: "%.1f hours", actualHours))
-            .font(.system(size: 28, weight: .semibold, design: .rounded))
+            .font(CadenceType.figure)
         }
         Spacer()
-        VStack(alignment: .trailing, spacing: 2) {
+        VStack(alignment: .trailing, spacing: 3) {
           Text("REPORTABLE")
-            .font(.system(size: 9, weight: .bold))
-            .tracking(0.9)
+            .font(CadenceType.eyebrow)
+            .tracking(CadenceType.eyebrowTracking)
             .foregroundStyle(.secondary)
           Text(String(format: "%.2fh", report.reportableHours))
-            .font(.system(size: 17, weight: .semibold, design: .rounded))
-            .foregroundStyle(CadencePalette.orange)
+            .font(CadenceType.figure)
+            .foregroundStyle(CadencePalette.accent)
         }
-        .padding(.horizontal, 11)
-        .padding(.vertical, 8)
-        .background(
-          CadencePalette.orange.opacity(0.09),
-          in: RoundedRectangle(cornerRadius: 9, style: .continuous))
       }
 
-      VStack(spacing: 7) {
+      VStack(spacing: 6) {
         GeometryReader { proxy in
           ZStack(alignment: .leading) {
             Capsule()
-              .fill(Color.primary.opacity(0.08))
+              .fill(CadencePalette.track)
             Capsule()
-              .fill(
-                LinearGradient(
-                  colors: [CadencePalette.coral, CadencePalette.orange],
-                  startPoint: .leading,
-                  endPoint: .trailing
-                )
-              )
+              .fill(CadencePalette.accent)
               .frame(width: proxy.size.width * targetProgress)
           }
         }
-        .frame(height: 7)
+        .frame(height: 5)
         HStack {
           Text("Weekly goal")
           Spacer()
           Text("10h")
         }
-        .font(.caption2)
-        .foregroundStyle(.secondary.opacity(0.72))
+        .font(CadenceType.caption)
+        .foregroundStyle(.secondary)
       }
 
       DailyBars()
-        .frame(height: 70)
+        .frame(height: 62)
 
       HStack {
-        Label("\(model.todaySessionCount) today", systemImage: "checkmark.circle")
-          .font(.caption)
+        Text("\(model.todaySessionCount) today")
+          .font(CadenceType.caption)
           .foregroundStyle(.secondary)
         Spacer()
-        Button {
+        Button("Copy weekly line") {
           model.copyWeeklyLog()
-        } label: {
-          Label("Copy weekly line", systemImage: "doc.on.doc")
         }
-        .buttonStyle(.plain)
-        .font(.caption.weight(.semibold))
-        .foregroundStyle(CadencePalette.orange)
+        .buttonStyle(.link)
+        .font(CadenceType.caption)
         .disabled(report.sessions.isEmpty)
       }
     }
-    .padding(18)
+    .padding(16)
     .cadenceCard()
   }
 }
@@ -687,21 +629,17 @@ struct DailyBars: View {
   var body: some View {
     let peak = max(model.dailyActivities.map(\.seconds).max() ?? 0, 3_600)
 
-    HStack(alignment: .bottom, spacing: 10) {
+    HStack(alignment: .bottom, spacing: 8) {
       ForEach(model.dailyActivities) { activity in
+        let isToday = Calendar.current.isDate(activity.date, inSameDayAs: model.now)
         VStack(spacing: 5) {
           Spacer(minLength: 0)
-          RoundedRectangle(cornerRadius: 4, style: .continuous)
-            .fill(
-              Calendar.current.isDate(activity.date, inSameDayAs: model.now)
-                ? CadencePalette.orange : CadencePalette.orange.opacity(0.28)
-            )
-            .frame(height: max(4, CGFloat(activity.seconds / peak) * 43))
+          RoundedRectangle(cornerRadius: 2, style: .continuous)
+            .fill(isToday ? CadencePalette.accent : Color.primary.opacity(0.18))
+            .frame(height: max(3, CGFloat(activity.seconds / peak) * 38))
           Text(activity.date, format: .dateTime.weekday(.narrow))
-            .font(.system(size: 9, weight: .semibold))
-            .foregroundStyle(
-              Calendar.current.isDate(activity.date, inSameDayAs: model.now)
-                ? CadencePalette.orange : Color.secondary.opacity(0.55))
+            .font(CadenceType.caption)
+            .foregroundStyle(isToday ? CadencePalette.accent : Color.secondary)
         }
         .frame(maxWidth: .infinity)
       }
@@ -713,31 +651,30 @@ struct RecentActivityCard: View {
   @EnvironmentObject private var model: AppModel
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      HStack {
+    VStack(alignment: .leading, spacing: 10) {
+      HStack(alignment: .firstTextBaseline) {
         VStack(alignment: .leading, spacing: 2) {
           Text("Recent work")
-            .font(.system(size: 16, weight: .semibold))
+            .font(CadenceType.emphasis)
           Text("Labeled sessions stay local on this Mac")
-            .font(.caption2)
-            .foregroundStyle(.secondary.opacity(0.78))
+            .font(CadenceType.caption)
+            .foregroundStyle(.secondary)
         }
         Spacer()
         Button("View all") {
           model.isHistoryPresented = true
         }
-        .buttonStyle(.plain)
-        .font(.caption.weight(.semibold))
-        .foregroundStyle(CadencePalette.orange)
+        .buttonStyle(.link)
+        .font(CadenceType.caption)
       }
 
       if model.recentSessions.isEmpty {
         VStack(spacing: 8) {
-          Image(systemName: "waveform")
-            .font(.system(size: 24, weight: .light))
-            .foregroundStyle(CadencePalette.orange.opacity(0.75))
+          Image(systemName: "timer")
+            .font(.system(size: 22, weight: .light))
+            .foregroundStyle(.tertiary)
           Text("Your first focus block will appear here.")
-            .font(.caption)
+            .font(CadenceType.caption)
             .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -747,14 +684,14 @@ struct RecentActivityCard: View {
             ForEach(Array(model.recentSessions.prefix(4))) { session in
               SessionRow(session: session)
               if session.id != model.recentSessions.prefix(4).last?.id {
-                Divider().padding(.leading, 38)
+                Divider()
               }
             }
           }
         }
       }
     }
-    .padding(18)
+    .padding(16)
     .cadenceCard()
   }
 }
@@ -765,33 +702,30 @@ struct SessionRow: View {
   let session: WorkSession
 
   var body: some View {
-    HStack(spacing: 11) {
-      ZStack {
-        RoundedRectangle(cornerRadius: 8, style: .continuous)
-          .fill(CadencePalette.orange.opacity(0.09))
-        Image(systemName: session.origin == .timer ? "timer" : "square.and.pencil")
-          .font(.system(size: 12, weight: .semibold))
-          .foregroundStyle(CadencePalette.orange)
-      }
-      .frame(width: 29, height: 29)
+    HStack(spacing: 10) {
+      Image(systemName: session.origin == .timer ? "timer" : "square.and.pencil")
+        .font(.system(size: 12))
+        .foregroundStyle(.secondary)
+        .frame(width: 18)
 
       VStack(alignment: .leading, spacing: 2) {
         Text(session.label)
-          .font(.system(size: 13, weight: .medium))
+          .font(CadenceType.body)
           .lineLimit(1)
         Text(
           session.note.isEmpty
             ? session.startedAt.formatted(date: .abbreviated, time: .shortened) : session.note
         )
-        .font(.caption2)
-        .foregroundStyle(.secondary.opacity(0.76))
+        .font(CadenceType.caption)
+        .foregroundStyle(.secondary)
         .lineLimit(1)
       }
 
       Spacer(minLength: 8)
 
       Text(model.durationText(session.duration))
-        .font(.system(size: 12, weight: .semibold, design: .rounded))
+        .font(CadenceType.body)
+        .monospacedDigit()
         .foregroundStyle(.secondary)
 
       Menu {
@@ -801,13 +735,13 @@ struct SessionRow: View {
       } label: {
         Image(systemName: "ellipsis")
           .foregroundStyle(.secondary)
-          .frame(width: 18, height: 24)
+          .frame(width: 16, height: 22)
       }
       .menuStyle(.borderlessButton)
       .menuIndicator(.hidden)
       .fixedSize()
     }
-    .padding(.vertical, 9)
+    .padding(.vertical, 8)
     .confirmationDialog(
       "Delete this log entry?",
       isPresented: $isConfirmingDelete,
@@ -827,19 +761,20 @@ struct BannerView: View {
   let message: String
 
   var body: some View {
-    HStack(spacing: 9) {
-      Image(systemName: "waveform")
-        .foregroundStyle(CadencePalette.orange)
+    HStack(spacing: 8) {
+      Image(systemName: "info.circle")
+        .foregroundStyle(CadencePalette.accent)
       Text(message)
-        .font(.system(size: 12, weight: .medium))
+        .font(CadenceType.body)
     }
-    .padding(.horizontal, 14)
-    .padding(.vertical, 11)
-    .background(.ultraThickMaterial, in: Capsule())
+    .padding(.horizontal, 12)
+    .padding(.vertical, 9)
+    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     .overlay {
-      Capsule().stroke(Color.primary.opacity(0.09))
+      RoundedRectangle(cornerRadius: 8, style: .continuous)
+        .stroke(CadencePalette.hairline)
     }
-    .shadow(color: .black.opacity(0.14), radius: 16, y: 7)
+    .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
   }
 }
 
@@ -848,42 +783,50 @@ struct CadencePrimaryButtonStyle: ButtonStyle {
 
   func makeBody(configuration: Configuration) -> some View {
     configuration.label
-      .font(.system(size: 13, weight: .semibold))
+      .font(CadenceType.emphasis)
       .foregroundStyle(.white)
-      .padding(.horizontal, 18)
-      .frame(height: 34)
+      .padding(.horizontal, 14)
+      .frame(height: 28)
       .background(
-        LinearGradient(
-          colors: [CadencePalette.coral, CadencePalette.orange],
-          startPoint: .topLeading,
-          endPoint: .bottomTrailing
-        ),
-        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+        configuration.isPressed && isEnabled ? CadencePalette.accentDeep : CadencePalette.accent,
+        in: RoundedRectangle(cornerRadius: 6, style: .continuous)
       )
-      .shadow(
-        color: CadencePalette.orange.opacity(configuration.isPressed && isEnabled ? 0.12 : 0.25),
-        radius: isEnabled ? 7 : 0, y: 3
-      )
-      .opacity(isEnabled ? 1 : 0.42)
-      .saturation(isEnabled ? 1 : 0.35)
-      .scaleEffect(configuration.isPressed && isEnabled ? 0.98 : 1)
+      .opacity(isEnabled ? 1 : 0.4)
   }
 }
 
 private struct CadenceCardModifier: ViewModifier {
   func body(content: Content) -> some View {
     content
-      .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+      .background(
+        CadencePalette.cardFill, in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+      )
       .overlay {
-        RoundedRectangle(cornerRadius: 18, style: .continuous)
-          .stroke(Color.primary.opacity(0.075))
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+          .stroke(CadencePalette.hairline)
       }
-      .shadow(color: .black.opacity(0.055), radius: 16, y: 7)
+  }
+}
+
+private struct CadenceFieldChromeModifier: ViewModifier {
+  func body(content: Content) -> some View {
+    content
+      .background(
+        CadencePalette.subtleFill, in: RoundedRectangle(cornerRadius: 6, style: .continuous)
+      )
+      .overlay {
+        RoundedRectangle(cornerRadius: 6, style: .continuous)
+          .stroke(CadencePalette.hairline)
+      }
   }
 }
 
 extension View {
   func cadenceCard() -> some View {
     modifier(CadenceCardModifier())
+  }
+
+  func cadenceFieldChrome() -> some View {
+    modifier(CadenceFieldChromeModifier())
   }
 }
